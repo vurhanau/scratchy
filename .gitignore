@@ -1,0 +1,11 @@
+target/
+*.iml
+*.log
+*.jar
+.classpath
+.project
+.settings/
+.idea/
+logs/
+*.exe
+*.hprof
