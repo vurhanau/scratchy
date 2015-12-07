@@ -6,8 +6,7 @@ public class MessageDumper {
 
   public static void put(long channelId, String message) {
     try (Jedis jedis = Data.jedis()) {
-      jedis.rpush(String.valueOf(channelId), message);
+      jedis.rpush(Data.messagePackKey(channelId), message);
     }
   }
-
 }

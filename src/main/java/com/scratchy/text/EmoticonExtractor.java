@@ -23,13 +23,13 @@ public class EmoticonExtractor implements Serializable {
 
   public static EmoticonExtractor create(List<String> icons) {
     Map<String, Pattern> cache =
-            icons.stream()
-                    .collect(
-                            Collectors.toMap(
-                                    re -> re,
-                                    re -> Pattern.compile(re)
-                            )
-                    );
+        icons.stream()
+            .collect(
+                Collectors.toMap(
+                    re -> re,
+                    re -> Pattern.compile(re)
+                )
+            );
     return new EmoticonExtractor(cache);
   }
 
@@ -60,11 +60,11 @@ public class EmoticonExtractor implements Serializable {
 
   public Map<String, Integer> frequency(ToIntFunction<Pattern> valueSelector) {
     Map<String, Integer> freqMap =
-            iconCache.entrySet().stream().collect(
-                    Collectors.toMap(
-                            e -> e.getKey(),
-                            e -> valueSelector.applyAsInt(e.getValue())
-                    ));
+        iconCache.entrySet().stream().collect(
+            Collectors.toMap(
+                e -> e.getKey(),
+                e -> valueSelector.applyAsInt(e.getValue())
+            ));
     return truncate(freqMap);
   }
 
@@ -82,27 +82,27 @@ public class EmoticonExtractor implements Serializable {
 
   private static Map<String, Integer> truncate(Map<String, Integer> original) {
     return original.entrySet().stream()
-            .filter(e -> e.getValue() > 0)
-            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        .filter(e -> e.getValue() > 0)
+        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
   }
 
   public static Map<Integer, List<String>> inverted(Map<String, Integer> index) {
     Map<Integer, List<String>> invertedIndex = new HashMap<>();
     index.entrySet()
-            .stream()
-            .forEach(entry -> {
-              int count = entry.getValue();
-              String icon = entry.getKey();
-              invertedIndex.computeIfPresent(count, (countKey, bucket) -> {
-                bucket.add(icon);
-                return bucket;
-              });
-              invertedIndex.computeIfAbsent(count, countKey -> {
-                List<String> bucket = new ArrayList<>();
-                bucket.add(icon);
-                return bucket;
-              });
-            });
+        .stream()
+        .forEach(entry -> {
+          int count = entry.getValue();
+          String icon = entry.getKey();
+          invertedIndex.computeIfPresent(count, (countKey, bucket) -> {
+            bucket.add(icon);
+            return bucket;
+          });
+          invertedIndex.computeIfAbsent(count, countKey -> {
+            List<String> bucket = new ArrayList<>();
+            bucket.add(icon);
+            return bucket;
+          });
+        });
     return invertedIndex;
   }
 }

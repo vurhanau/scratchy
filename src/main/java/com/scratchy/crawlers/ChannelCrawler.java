@@ -8,21 +8,22 @@ import com.typesafe.config.ConfigFactory;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 
 public class ChannelCrawler {
 
   private final static String urlBase = "https://api.twitch.tv/kraken/streams?limit=%d";
 
-  public static Iterable<ChannelStream> download() throws IOException {
+  public static List<ChannelStream> download() throws IOException {
     Config conf = ConfigFactory.load();
     int topN = conf.getInt("rankSize");
     return download(topN);
   }
 
-  public static Iterable<ChannelStream> download(int topN) throws IOException {
+  public static List<ChannelStream> download(int topN) throws IOException {
     ObjectMapper parser = new ObjectMapper();
     String url = String.format(urlBase, topN);
     ChannelStreamPack pack = parser.readValue(new URL(url), ChannelStreamPack.class);
-    return pack;
+    return pack.getChannelStreams();
   }
 }

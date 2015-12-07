@@ -20,12 +20,16 @@ package com.scratchy.storm.starter;
 import backtype.storm.Config;
 import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.topology.base.BaseRichBolt;
+import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import com.scratchy.storm.starter.bolt.*;
 import com.scratchy.db.Data;
 import com.scratchy.storm.starter.spout.IrcSpout;
+import com.scratchy.storm.starter.util.Bootstrap;
 import com.scratchy.storm.starter.util.StormRunner;
 import com.scratchy.text.EmoticonExtractor;
+import com.typesafe.config.ConfigFactory;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -33,26 +37,54 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * This topology does a continuous computation of the top N words that the topology has seen in terms of cardinality.
- * The top N computation is done in a completely scalable way, and a similar approach could be used to compute things
- * like trending topics or trending images on Twitter.
- */
 public class RollingTopWords {
-  private static final Logger LOG = Logger.getLogger(RollingTopWords.class);
-  private static final int DEFAULT_RUNTIME_IN_SECONDS = 60;
-  private static final int TOP_N = 5;
+  private static final Logger log = Logger.getLogger(RollingTopWords.class);
+
+  private static class K {
+    public static final String top = "top-n";
+    public static final String runningFor = "running-for";
+    public static final String windowDuration = "window.duration";
+    public static final String windowPrecision = "window.precision";
+  }
+
+  private static class Parallelism {
+    public static final int freqCounterBolt = 10;
+    public static final int rollingCounterBolt = 4;
+    public static final int intermediateRankerBolt = 4;
+  }
+
+  private static class Ids {
+    public static final String freqCounterBolt = "frequencyCounter";
+    public static final String counterBolt = "counter";
+    public static final String intermediateRankerBolt = "intermediateRanker";
+    public static final String totalRankerBolt = "finalRanker";
+    public static final String dumperBolt = "ranksDumper";
+    public static final String topology = "slidingWindowCounts";
+  }
+
+  private static class Columns {
+    private static final Fields freqCounter = new Fields("obj", "count");
+    private static final Fields counter = new Fields("obj");
+  }
 
   private final TopologyBuilder builder;
   private final String topologyName;
   private final Config topologyConfig;
   private final int runtimeInSeconds;
+  private final int topN;
+  private final int windowDuration;
+  private final int windowPrecision;
 
   public RollingTopWords(String topologyName) throws InterruptedException, IOException {
     builder = new TopologyBuilder();
     this.topologyName = topologyName;
     topologyConfig = createTopologyConfiguration();
-    runtimeInSeconds = DEFAULT_RUNTIME_IN_SECONDS;
+
+    com.typesafe.config.Config conf = ConfigFactory.load();
+    runtimeInSeconds = conf.getInt(K.runningFor);
+    windowDuration = conf.getInt(K.windowDuration);
+    windowPrecision = conf.getInt(K.windowPrecision);
+    topN = conf.getInt(K.top);
 
     wireTopology();
   }
@@ -63,41 +95,61 @@ public class RollingTopWords {
     return conf;
   }
 
-  private List<IrcSpout> putSpouts(TopologyBuilder builder, Map<Long, String> topChannels) {
+  private List<IrcSpout> setSpouts(TopologyBuilder builder, Map<Long, String> topChannels) {
     return topChannels.entrySet()
-            .stream()
-            .map(entry -> {
-              long channelId = entry.getKey();
-              String channelName = entry.getValue();
-              IrcSpout spout = new IrcSpout(channelId, channelName, true);
-              builder.setSpout(spout.descriptor(), spout);
-              return spout;
-            })
-            .collect(Collectors.toList());
+        .stream()
+        .map(entry -> {
+          long channelId = entry.getKey();
+          String channelName = entry.getValue();
+          IrcSpout spout = new IrcSpout(channelId, channelName, true);
+          builder.setSpout(spout.descriptor(), spout);
+          return spout;
+        })
+        .collect(Collectors.toList());
+  }
+
+  public void setFreqCounter(List<IrcSpout> spouts, Map<Long, String> topChannels) {
+    Map<Long, EmoticonExtractor> textParsers = Data.textParsers(topChannels.keySet());
+    BaseRichBolt freqCounter = new FrequencyCounterBolt(textParsers);
+
+    BoltDeclarer freqBolt = builder.setBolt(Ids.freqCounterBolt, freqCounter, Parallelism.freqCounterBolt);
+    for (IrcSpout spout : spouts) {
+      freqBolt = freqBolt.shuffleGrouping(spout.descriptor());
+    }
+  }
+
+  public void setCounter(TopologyBuilder builder) {
+    builder
+        .setBolt(Ids.counterBolt, new RollingCountBolt(windowDuration, windowPrecision), Parallelism.rollingCounterBolt)
+        .fieldsGrouping(Ids.freqCounterBolt, Columns.freqCounter);
+  }
+
+  private void setIntermediateRanker(TopologyBuilder builder) {
+    builder
+        .setBolt(Ids.intermediateRankerBolt, new IntermediateRankingsBolt(topN), Parallelism.intermediateRankerBolt)
+        .fieldsGrouping(Ids.counterBolt, Columns.counter);
+  }
+
+  private void setTotalRanker(TopologyBuilder builder) {
+    builder
+        .setBolt(Ids.totalRankerBolt, new TotalRankingsBolt(topN))
+        .globalGrouping(Ids.intermediateRankerBolt);
+  }
+
+  private void setDumper(TopologyBuilder builder) {
+    builder
+        .setBolt(Ids.dumperBolt, new DumpRankingsBolt())
+        .globalGrouping(Ids.totalRankerBolt);
   }
 
   private void wireTopology() throws InterruptedException, IOException {
-    String messageParser = "messageParser";
-    String counterId = "counter";
-    String intermediateRankerId = "intermediateRanker";
-    String totalRankerId = "finalRanker";
-    String dumperId = "ranksDumper";
-
     Map<Long, String> topChannels = Data.channels();
-    List<IrcSpout> spouts = putSpouts(builder, topChannels);
-    Map<Long, EmoticonExtractor> textParsers = Data.textParsers(topChannels.keySet());
-    BoltDeclarer freqBolt = builder.setBolt(messageParser, new FrequencyCounterBolt(textParsers), 10);
-    for(IrcSpout spout : spouts) {
-      freqBolt = freqBolt.shuffleGrouping(spout.descriptor());
-    }
-
-    builder.setBolt(counterId, new RollingCountBolt(9, 3), 4)
-            .fieldsGrouping(messageParser, new Fields("obj", "count"));
-
-    builder.setBolt(intermediateRankerId, new IntermediateRankingsBolt(TOP_N), 4)
-            .fieldsGrouping(counterId, new Fields("obj"));
-    builder.setBolt(totalRankerId, new TotalRankingsBolt(TOP_N)).globalGrouping(intermediateRankerId);
-    builder.setBolt(dumperId, new DumpRankingsBolt()).globalGrouping(totalRankerId);
+    List<IrcSpout> spouts = setSpouts(builder, topChannels);
+    setFreqCounter(spouts, topChannels);
+    setCounter(builder);
+    setIntermediateRanker(builder);
+    setTotalRanker(builder);
+    setDumper(builder);
   }
 
   public void runLocally() throws InterruptedException {
@@ -108,40 +160,11 @@ public class RollingTopWords {
     StormRunner.runTopologyRemotely(builder.createTopology(), topologyName, topologyConfig);
   }
 
-  /**
-   * Submits (runs) the topology.
-   * <p>
-   * Usage: "RollingTopWords [topology-name] [local|remote]"
-   * <p>
-   * By default, the topology is run locally under the name "slidingWindowCounts".
-   * <p>
-   * Examples:
-   * <p>
-   * <pre>
-   * {@code
-   *
-   * # Runs in local mode (LocalCluster), with topology name "slidingWindowCounts"
-   * $ storm jar storm-starter-jar-with-dependencies.jar storm.starter.RollingTopWords
-   *
-   * # Runs in local mode (LocalCluster), with topology name "foobar"
-   * $ storm jar storm-starter-jar-with-dependencies.jar storm.starter.RollingTopWords foobar
-   *
-   * # Runs in local mode (LocalCluster), with topology name "foobar"
-   * $ storm jar storm-starter-jar-with-dependencies.jar storm.starter.RollingTopWords foobar local
-   *
-   * # Runs in remote/cluster mode, with topology name "production-topology"
-   * $ storm jar storm-starter-jar-with-dependencies.jar storm.starter.RollingTopWords production-topology remote
-   * }
-   * </pre>
-   *
-   * @param args First positional argument (optional) is topology name, second positional argument (optional) defines
-   *             whether to run the topology locally ("local") or remotely, i.e. on a real cluster ("remote").
-   * @throws Exception
-   */
   public static void main(String[] args) throws Exception {
-//    Bootstrap.launch();
+    // TODO: load in parallel
+    Bootstrap.launch();
 
-    String topologyName = "slidingWindowCounts";
+    String topologyName = Ids.topology;
     if (args.length >= 1) {
       topologyName = args[0];
     }
@@ -150,13 +173,13 @@ public class RollingTopWords {
       runLocally = false;
     }
 
-    LOG.info("Topology name: " + topologyName);
+    log.info("Topology name: " + topologyName);
     RollingTopWords rtw = new RollingTopWords(topologyName);
     if (runLocally) {
-      LOG.info("Running in local mode");
+      log.info("Running in local mode");
       rtw.runLocally();
     } else {
-      LOG.info("Running in remote (cluster) mode");
+      log.info("Running in remote (cluster) mode");
       rtw.runRemotely();
     }
   }

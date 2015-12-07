@@ -13,4 +13,8 @@ public class Bootstrap {
     ChannelDumper.toRedis(10);
     EmoticonDumper.packToRedis();
   }
+
+  public static void main(String[] args) throws IOException {
+    launch();
+  }
 }
