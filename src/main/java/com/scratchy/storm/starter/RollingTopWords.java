@@ -30,6 +30,7 @@ import com.scratchy.storm.starter.util.Bootstrap;
 import com.scratchy.storm.starter.util.StormRunner;
 import com.scratchy.text.EmoticonExtractor;
 import org.apache.log4j.Logger;
+import org.apache.log4j.net.SyslogAppender;
 
 import java.io.IOException;
 import java.util.List;
@@ -152,6 +153,11 @@ public class RollingTopWords {
   }
 
   public static void main(String[] args) throws Exception {
+    if(!Global.validConfig()) {
+      System.err.println("/scratchy: unable to start due to invalid config");
+      Global.printMissing();
+      System.exit(1);
+    }
     // TODO: load in parallel
     Bootstrap.launch();
 

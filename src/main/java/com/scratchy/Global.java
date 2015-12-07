@@ -21,7 +21,7 @@ public class Global {
     public static final String crawlerPoolSize = "crawler.pool.size";
     public static final String ircName = "crawler.irc.name";
     public static final String ircHost = "crawler.irc.server.hostname";
-    public static final String ircPassword = "server.password";
+    public static final String ircPassword = "crawler.irc.server.password";
     public static final String redisHost = "redis.ip";
     public static final String redisPort = "redis.port";
     public static final String[] all = {
@@ -34,6 +34,14 @@ public class Global {
 
   public static boolean validConfig() {
     return Arrays.stream(all).allMatch(key -> appConf.hasPath(key));
+  }
+
+  public static void printMissing() {
+    System.err.println("missing: " +
+        Arrays.toString(
+            Arrays.stream(all).filter(key -> !appConf.hasPath(key)).toArray()
+        )
+    );
   }
 
   public static int topN() {
