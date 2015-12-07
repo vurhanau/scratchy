@@ -2,8 +2,8 @@ package com.scratchy.db;
 
 import com.scratchy.crawlers.EmoticonCrawler;
 import com.scratchy.obj.ChannelStream;
-import com.scratchy.obj.Emoticon;
 import com.scratchy.obj.ChannelStreamPack;
+import com.scratchy.obj.Emoticon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -13,10 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.stream.Stream;
+import java.util.Set;
 
 public class EmoticonDumper {
 
@@ -31,9 +30,15 @@ public class EmoticonDumper {
         log.debug("/emoticon-dumper: [{}] - downloading emoticons...", channel);
         List<Emoticon> icons = EmoticonCrawler.download(channel);
         log.debug("/emoticon-dumper: [{}] - dumping emoticons...", channel);
-        for(Emoticon icon : icons) {
-          jedis.rpush(Data.emoticonsKey(id), icon.getRegex());
+
+        Set<String> inUse = new HashSet<>();
+        for (Emoticon icon : icons) {
+          String re = icon.getRegex();
+          if (inUse.contains(re)) continue;
+
+          jedis.rpush(Data.emoticonsKey(id), re);
           jedis.rpush(Data.emoticonUrlsKey(id), icon.getUrl());
+          inUse.add(re);
         }
         log.debug("/emoticon-dumper: [{}] - done!", channel);
       }
