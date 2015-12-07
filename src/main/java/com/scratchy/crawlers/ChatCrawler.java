@@ -1,7 +1,6 @@
 package com.scratchy.crawlers;
 
-import com.scratchy.db.Data;
-import com.typesafe.config.ConfigFactory;
+import com.scratchy.Global;
 import org.pircbotx.Configuration;
 import org.pircbotx.PircBotX;
 import org.pircbotx.exception.IrcException;
@@ -11,22 +10,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 
-public class ChatCrawler implements Serializable {
+public class ChatCrawler {
 
-  private final static Logger log = LoggerFactory.getLogger("noBullshit");
+  private final static Logger log = LoggerFactory.getLogger(ChatCrawler.class);
 
   private final ListenerAdapter delegate;
 
   private final String channel;
-
-  private static class Conf {
-    private static final String root = "crawler.irc.";
-    public static final String name = root + "name";
-    public static final String host = root + "server.hostname";
-    public static final String password = root + "server.password";
-  }
 
   public ChatCrawler(String channel, ListenerAdapter delegate) {
     this.channel = channel;
@@ -39,11 +30,10 @@ public class ChatCrawler implements Serializable {
   }
 
   private Configuration ircConf() {
-    com.typesafe.config.Config conf = ConfigFactory.load();
     return new Configuration.Builder()
-            .setName(conf.getString(Conf.name))
-            .setServerHostname(conf.getString(Conf.host))
-            .setServerPassword(conf.getString(Conf.password))
+            .setName(Global.ircName())
+            .setServerHostname(Global.ircHost())
+            .setServerPassword(Global.ircPassword())
             .addAutoJoinChannel("#" + channel)
             .addListener(delegate)
             .buildConfiguration();
@@ -68,11 +58,4 @@ public class ChatCrawler implements Serializable {
       log.warn("/irc-crawler: oops, failure", e);
     }
   }
-
-//  public static void main(String[] args) throws InterruptedException {
-//    Data.channels().entrySet().parallelStream().forEach(channel -> {
-//      new ChatCrawler(channel.getValue()).start();
-//    });
-//    Thread.sleep(Long.MAX_VALUE);
-//  }
 }

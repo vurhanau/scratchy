@@ -21,15 +21,14 @@ import backtype.storm.Config;
 import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseRichBolt;
-import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
-import com.scratchy.storm.starter.bolt.*;
+import com.scratchy.Global;
 import com.scratchy.db.Data;
+import com.scratchy.storm.starter.bolt.*;
 import com.scratchy.storm.starter.spout.IrcSpout;
 import com.scratchy.storm.starter.util.Bootstrap;
 import com.scratchy.storm.starter.util.StormRunner;
 import com.scratchy.text.EmoticonExtractor;
-import com.typesafe.config.ConfigFactory;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -39,13 +38,6 @@ import java.util.stream.Collectors;
 
 public class RollingTopWords {
   private static final Logger log = Logger.getLogger(RollingTopWords.class);
-
-  private static class K {
-    public static final String top = "top-n";
-    public static final String runningFor = "running-for";
-    public static final String windowDuration = "window.duration";
-    public static final String windowPrecision = "window.precision";
-  }
 
   private static class Parallelism {
     public static final int freqCounterBolt = 10;
@@ -80,11 +72,10 @@ public class RollingTopWords {
     this.topologyName = topologyName;
     topologyConfig = createTopologyConfiguration();
 
-    com.typesafe.config.Config conf = ConfigFactory.load();
-    runtimeInSeconds = conf.getInt(K.runningFor);
-    windowDuration = conf.getInt(K.windowDuration);
-    windowPrecision = conf.getInt(K.windowPrecision);
-    topN = conf.getInt(K.top);
+    runtimeInSeconds = Global.runningFor();
+    windowDuration = Global.windowDuration();
+    windowPrecision = Global.windowPrecision();
+    topN = Global.topN();
 
     wireTopology();
   }

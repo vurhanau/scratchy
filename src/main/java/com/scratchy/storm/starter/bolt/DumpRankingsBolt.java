@@ -28,10 +28,6 @@ public class DumpRankingsBolt extends BaseRichBolt {
     }
   }
 
-  private static String entry(Rankable rank) {
-    return rank.getCount() + ":" + rank.getObject();
-  }
-
   @Override
   public void execute(Tuple tuple) {
     try (Jedis jedis = Data.jedis()) {

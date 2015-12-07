@@ -31,7 +31,6 @@ public final class TotalRankingsBolt extends AbstractRankerBolt {
 
   private static final long serialVersionUID = -8447525895532302198L;
   private static final Logger LOG = Logger.getLogger(TotalRankingsBolt.class);
-  private static final Logger log2 = Logger.getLogger("keepOnRollingBaby");
 
   public TotalRankingsBolt() {
     super();
@@ -54,11 +53,11 @@ public final class TotalRankingsBolt extends AbstractRankerBolt {
 
   @Override
   String id() {
-    return "TO";
+    return "TR";
   }
 
   @Override
   Logger getLogger() {
-    return log2;
+    return LOG;
   }
 }

@@ -1,6 +1,7 @@
 package com.scratchy.crawlers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scratchy.Global;
 import com.scratchy.obj.ChannelStream;
 import com.scratchy.obj.ChannelStreamPack;
 import com.scratchy.obj.Emoticon;
@@ -16,8 +17,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class EmoticonCrawler {
-
-  private static final String urlBase = "https://api.twitch.tv/kraken/chat/%s/emoticons";
 
   private static final Logger log = LoggerFactory.getLogger(EmoticonCrawler.class);
 
@@ -35,7 +34,7 @@ public class EmoticonCrawler {
   }
 
   public static List<Emoticon> download(String channel) throws IOException {
-    String uri = String.format(urlBase, channel);
+    String uri = String.format(Global.emoticonsUrlBase(), channel);
     ObjectMapper parser = new ObjectMapper();
     log.debug("/emoticon-crawler: [{}] - {}", channel, uri);
     EmoticonPack val = parser.readValue(new URL(uri), EmoticonPack.class);
@@ -47,7 +46,7 @@ public class EmoticonCrawler {
   }
 
   public static List<String> downloadStrings(String channel) throws IOException {
-    String uri = String.format(urlBase, channel);
+    String uri = String.format(Global.emoticonsUrlBase(), channel);
     ObjectMapper parser = new ObjectMapper();
     log.debug("/emoticon-crawler: [{}] - {}", channel, uri);
     EmoticonPack val = parser.readValue(new URL(uri), EmoticonPack.class);

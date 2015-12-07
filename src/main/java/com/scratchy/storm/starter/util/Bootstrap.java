@@ -1,5 +1,6 @@
 package com.scratchy.storm.starter.util;
 
+import com.scratchy.Global;
 import com.scratchy.db.ChannelDumper;
 import com.scratchy.db.Data;
 import com.scratchy.db.EmoticonDumper;
@@ -10,7 +11,7 @@ public class Bootstrap {
 
   public static void launch() throws IOException {
     Data.flushRedis();
-    ChannelDumper.toRedis(10);
+    ChannelDumper.toRedis(Global.topN());
     EmoticonDumper.packToRedis();
   }
 

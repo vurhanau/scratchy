@@ -1,9 +1,8 @@
 package com.scratchy.db;
 
+import com.scratchy.Global;
 import com.scratchy.obj.ChannelStream;
 import com.scratchy.text.EmoticonExtractor;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -12,18 +11,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class Data {
-  private final static JedisPool pool;
+
+  private final static JedisPool pool = new JedisPool(new JedisPoolConfig(), Global.redisHost(), Global.redisPort());
 
   static {
-    Config conf = ConfigFactory.load();
-    String host = conf.getString("redis.ip");
-    int port = conf.getInt("redis.port");
-    pool = new JedisPool(new JedisPoolConfig(), host, port);
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
         pool.close();
     }));

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 public class PrintOutBolt extends BaseRichBolt {
-  private final static Logger print = LoggerFactory.getLogger("noBullshit");
+  private final static Logger printer = LoggerFactory.getLogger(PrintOutBolt.class);
 
   @Override
   public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
@@ -20,7 +20,7 @@ public class PrintOutBolt extends BaseRichBolt {
 
   @Override
   public void execute(Tuple tuple) {
-    print.info("[" + tuple.getLong(0) + "] " + tuple.getString(1));
+    printer.info("[" + tuple.getLong(0) + "] " + tuple.getString(1));
   }
 
   @Override

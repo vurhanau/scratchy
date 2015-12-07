@@ -15,13 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
 
 public class IrcSpout extends BaseRichSpout {
 
-  private final static Logger log = LoggerFactory.getLogger("noBullshit");
+  private final static Logger log = LoggerFactory.getLogger(IrcSpout.class);
 
   private final Queue<String> incoming;
 
